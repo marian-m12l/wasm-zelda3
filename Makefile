@@ -1,10 +1,10 @@
-TARGET_EXEC:=zelda3
+TARGET_EXEC:=zelda3.html
 ROM:=tables/zelda3.sfc
 SRCS:=$(wildcard src/*.c snes/*.c) third_party/gl_core/gl_core_3_1.c third_party/opus-1.3.1-stripped/opus_decoder_amalgam.c
 OBJS:=$(SRCS:%.c=%.o)
 PYTHON:=/usr/bin/env python3
 CFLAGS:=$(if $(CFLAGS),$(CFLAGS),-O2 -Werror) -I .
-CFLAGS:=${CFLAGS} $(shell sdl2-config --cflags) -DSYSTEM_VOLUME_MIXER_AVAILABLE=0
+CFLAGS:=${CFLAGS} -DSYSTEM_VOLUME_MIXER_AVAILABLE=0 -sUSE_SDL=2
 
 ifeq (${OS},Windows_NT)
     WINDRES:=windres
@@ -18,7 +18,7 @@ endif
 
 all: $(TARGET_EXEC) zelda3_assets.dat
 $(TARGET_EXEC): $(OBJS) $(RES)
-	$(CC) $^ -o $@ $(LDFLAGS) $(SDLFLAGS)
+	$(CC) $^ -o $@ $(LDFLAGS) $(SDLFLAGS) -sALLOW_MEMORY_GROWTH=1 --embed-file zelda3_assets.dat --embed-file zelda3.ini
 %.o : %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 

@@ -126,8 +126,9 @@ struct Ppu {
   PpuPixelPrioBufs objBuffer;
   uint16_t vram[0x8000];
 };
+typedef struct Snes Snes; 
 
-Ppu* ppu_init();
+Ppu* ppu_init(Snes* snes);
 void ppu_free(Ppu* ppu);
 void ppu_reset(Ppu* ppu);
 void ppu_handleVblank(Ppu* ppu);
