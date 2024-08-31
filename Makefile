@@ -18,7 +18,7 @@ endif
 
 all: $(TARGET_EXEC) zelda3_assets.dat
 $(TARGET_EXEC): $(OBJS) $(RES)
-	$(CC) $^ -o $@ $(LDFLAGS) $(SDLFLAGS) -sALLOW_MEMORY_GROWTH=1 --embed-file zelda3_assets.dat --embed-file zelda3.ini
+	$(CC) $^ -o $@ $(LDFLAGS) $(SDLFLAGS) -sALLOW_MEMORY_GROWTH=1 -sWASM=1 -sEXPORTED_RUNTIME_METHODS="['FS','ccall','cwrap']" --embed-file zelda3_assets.dat --embed-file zelda3.ini
 %.o : %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
