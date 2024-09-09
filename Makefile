@@ -1,4 +1,4 @@
-TARGET_EXEC:=zelda3.html
+TARGET_EXEC:=zelda3.js
 ROM:=tables/zelda3.sfc
 SRCS:=$(wildcard src/*.c snes/*.c) third_party/gl_core/gl_core_3_1.c third_party/opus-1.3.1-stripped/opus_decoder_amalgam.c
 OBJS:=$(SRCS:%.c=%.o)
@@ -18,7 +18,7 @@ endif
 
 all: $(TARGET_EXEC) zelda3_assets.dat
 $(TARGET_EXEC): $(OBJS) $(RES)
-	$(CC) $^ -o $@ $(LDFLAGS) $(SDLFLAGS) -sALLOW_MEMORY_GROWTH=1 -sWASM=1 -sEXPORTED_RUNTIME_METHODS="['FS','ccall','cwrap']" --embed-file zelda3_assets.dat --embed-file zelda3.ini
+	$(CC) $^ -o $@ $(LDFLAGS) $(SDLFLAGS) -sALLOW_MEMORY_GROWTH=1 -sWASM=1 -sENVIRONMENT=web -sEXPORTED_RUNTIME_METHODS="['FS','ccall','cwrap']" -sFILESYSTEM=1 -sFORCE_FILESYSTEM=1 -lidbfs.js --embed-file zelda3_assets.dat --embed-file zelda3.ini
 %.o : %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 

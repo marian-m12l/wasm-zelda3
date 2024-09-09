@@ -346,6 +346,18 @@ int main(int argc, char **argv)
   LoadAssets();
   LoadLinkGraphics();
 
+  // Set up Emscripten filesystem synchronization and then start the main loop
+  EM_ASM({
+    FS.mkdir('/saves');
+    FS.mount(IDBFS, {autoPersist : true}, '/saves');
+    FS.syncfs(true, function(err) {
+      if (err) {
+        console.error('Error syncing from IDBFS:', err);
+      } else {
+        console.log('IDBFS loaded successfully.');
+      } });
+  });
+
   ZeldaInitialize();
   g_zenv.ppu->extraLeftRight = UintMin(g_config.extended_aspect_ratio, kPpuExtraLeftRight);
   g_snes_width = (g_config.extended_aspect_ratio * 2 + 256);
@@ -440,11 +452,11 @@ int main(int argc, char **argv)
   if (argc >= 1 && !g_run_without_emu)
     LoadRom(argv[0]);
 
-#if defined(_WIN32)
-  _mkdir("saves");
-#else
-  mkdir("saves", 0755);
-#endif
+  // #if defined(_WIN32)
+  //   _mkdir("saves");
+  // #else
+  //   mkdir("saves", 0755);
+  // #endif
 
   ZeldaReadSram();
 
@@ -454,8 +466,19 @@ int main(int argc, char **argv)
   if (g_config.autosave)
     HandleCommand(kKeys_Load + 0, true);
 
-  // Start the main loop
   emscripten_set_main_loop(main_loop, 0, 1);
+
+  EM_ASM({
+    FS.syncfs(false, function(err) { 
+    if (err) {
+        // there was an error
+        console.log(err);
+    } else {
+        // data written successfully
+        console.log("file written successfully");
+    } });
+    console.log("Syncing filesystem...");
+  });
 
   return 0;
 }
