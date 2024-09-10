@@ -11,8 +11,6 @@
 #include "util.h"
 #include "audio.h"
 #include "assets.h"
-#include <emscripten.h>
-#include <emscripten/html5.h>
 ZeldaEnv g_zenv;
 uint8 g_ram[131072];
 
@@ -949,7 +947,7 @@ void SaveLoadSlot(int cmd, int which)
   }
   else
   {
-    sprintf(name, "saves/save%d.sav", which);
+    sprintf(name, "persist-z3/save%d.sav", which);
   }
   FILE *f = fopen(name, cmd != kSaveLoad_Save ? "rb" : "wb");
   if (f)
@@ -966,18 +964,6 @@ void SaveLoadSlot(int cmd, int which)
 
     fclose(f);
   }
-
-  EM_ASM({
-    FS.syncfs(false, function(err) { 
-    if (err) {
-        // there was an error
-        console.log(err);
-    } else {
-        // data written successfully
-        console.log("file written successfully");
-    } });
-    console.log("Syncing filesystem...");
-  });
 }
 
 typedef struct StateRecoderMultiPatch
@@ -1051,32 +1037,20 @@ void PatchCommand(char c)
 
 void ZeldaReadSram()
 {
-  FILE *f = fopen("saves/sram.dat", "rb");
+  FILE *f = fopen("persist-z3/sram.dat", "rb");
   if (f)
   {
     if (fread(g_zenv.sram, 1, 8192, f) != 8192)
-      fprintf(stderr, "Error reading saves/sram.dat\n");
+      fprintf(stderr, "Error reading persist-z3/sram.dat\n");
     fclose(f);
     EmuSynchronizeWholeState();
   }
-
-  EM_ASM({
-    FS.syncfs(false, function(err) { 
-    if (err) {
-        // there was an error
-        console.log(err);
-    } else {
-        // data written successfully
-        console.log("file written successfully");
-    } });
-    console.log("Syncing filesystem...");
-  });
 }
 
 void ZeldaWriteSram()
 {
-  rename("saves/sram.dat", "saves/sram.bak");
-  FILE *f = fopen("saves/sram.dat", "wb");
+  rename("persist-z3/sram.dat", "persist-z3/sram.bak");
+  FILE *f = fopen("persist-z3/sram.dat", "wb");
   if (f)
   {
     fwrite(g_zenv.sram, 1, 8192, f);
@@ -1084,18 +1058,6 @@ void ZeldaWriteSram()
   }
   else
   {
-    fprintf(stderr, "Unable to write saves/sram.dat\n");
+    fprintf(stderr, "Unable to write persist-z3/sram.dat\n");
   }
-
-  EM_ASM({
-    FS.syncfs(false, function(err) { 
-    if (err) {
-        // there was an error
-        console.log(err);
-    } else {
-        // data written successfully
-        console.log("file written successfully");
-    } });
-    console.log("Syncing filesystem...");
-  });
 }

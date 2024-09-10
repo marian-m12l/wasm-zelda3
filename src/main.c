@@ -346,18 +346,6 @@ int main(int argc, char **argv)
   LoadAssets();
   LoadLinkGraphics();
 
-  // Set up Emscripten filesystem synchronization and then start the main loop
-  EM_ASM({
-    FS.mkdir('/saves');
-    FS.mount(IDBFS, {autoPersist : true}, '/saves');
-    FS.syncfs(true, function(err) {
-      if (err) {
-        console.error('Error syncing from IDBFS:', err);
-      } else {
-        console.log('IDBFS loaded successfully.');
-      } });
-  });
-
   ZeldaInitialize();
   g_zenv.ppu->extraLeftRight = UintMin(g_config.extended_aspect_ratio, kPpuExtraLeftRight);
   g_snes_width = (g_config.extended_aspect_ratio * 2 + 256);
@@ -467,18 +455,6 @@ int main(int argc, char **argv)
     HandleCommand(kKeys_Load + 0, true);
 
   emscripten_set_main_loop(main_loop, 0, 1);
-
-  EM_ASM({
-    FS.syncfs(false, function(err) { 
-    if (err) {
-        // there was an error
-        console.log(err);
-    } else {
-        // data written successfully
-        console.log("file written successfully");
-    } });
-    console.log("Syncing filesystem...");
-  });
 
   return 0;
 }
@@ -1076,7 +1052,7 @@ uint32 g_asset_sizes[kNumberOfAssets];
 static void LoadAssets()
 {
   size_t length = 0;
-  uint8 *data = ReadWholeFile("roms/zelda3_assets.dat", &length);
+  uint8 *data = ReadWholeFile("/persist-z3/zelda3_assets.dat", &length);
   if (!data)
   {
     size_t bps_length, bps_src_length;

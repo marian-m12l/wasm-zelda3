@@ -102,18 +102,12 @@
 						} else {
 							// ROM is correct
 							console.log('Storing file into IndexedDB filesystem...');
-							var fd = FS.open('/roms/zelda3_assets.dat', "w+");
+							var fd = FS.open('/persist-z3/zelda3_assets.dat', "w+");
 							FS.write(fd, new Uint8Array(reader.result), 0, reader.result.byteLength, 0);
 							FS.close(fd);
-							FS.syncfs(function (err) {
-								if (err) {
-									console.error(err);
-									alert('Failed to store selected file');
-								} else {
-									console.log('Starting game with selected rom file...');
-									this.callMain();
-								}
-							});
+              // TODO check persisted zelda3_assets.dat !!!
+              console.log('Starting game with selected rom file...');
+              callMain();
 						}
 					});
 				};
@@ -131,15 +125,15 @@
 		preRun: [
 			(async function() {
 				console.log("preRun hook: look for rom in IndexedDB filesystem");
-				// Mount 'roms' directory in browser's persistent IndexedDB
-				FS.mkdir('/roms');
-				FS.mount(IDBFS, {}, '/roms');
+				// Mount '/persist-z3' directory in browser's persistent IndexedDB
+				FS.mkdir('/persist-z3');
+				FS.mount(IDBFS, { autoPersist: true }, '/persist-z3');
 				FS.syncfs(true, function (err) {
 					if (err) {
 						console.error(err);
-						alert('Failed to mount \'roms\' filesystem');
+						alert('Failed to mount \'/persist-z3\' filesystem');
 					} else {
-						var rompath = FS.analyzePath('/roms/zelda3_assets.dat', true);
+						var rompath = FS.analyzePath('/persist-z3/zelda3_assets.dat', true);
 						console.log(rompath);
 						if (rompath.exists) {
 							console.log('ROM file already in filesystem');
