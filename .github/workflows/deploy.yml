@@ -35,7 +35,7 @@ jobs:
       - name: Link
         run: shopt -s globstar && cd build && emcc -flto -O3 **/*.o libgl.a libopus.a -o index.html --shell-file ../shell.html -sUSE_SDL=2 -sENVIRONMENT=web -sINVOKE_RUN=0 --preload-file zelda3.ini -Wl,-u,fileno -lidbfs.js
       - name: Upload build artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifact
           path: './build'
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: build-artifact
       - name: Setup Pages
