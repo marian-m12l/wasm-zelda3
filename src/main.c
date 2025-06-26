@@ -81,6 +81,32 @@ void NORETURN Die(const char *error)
   exit(1);
 }
 
+
+#define ARIA_BUFFER_LEN (512)
+char aria_buffer[ARIA_BUFFER_LEN];
+int v_updateAriaLabel(const char* fmt, va_list va) {
+    int result, n;
+    result = vsnprintf(aria_buffer, ARIA_BUFFER_LEN, fmt, va);
+    n = result;
+    if (n > ARIA_BUFFER_LEN) {
+        n = ARIA_BUFFER_LEN;
+    }
+    EM_ASM({
+        updateAriaLabel($0);
+    }, aria_buffer);
+    return result;
+}
+int updateAriaLabel(const char* fmt, ...) {
+    int result;
+    va_list args;
+
+    va_start(args, fmt);
+    result = v_updateAriaLabel(fmt, args);
+    va_end(args);
+
+    return result;
+}
+
 void ChangeWindowScale(int scale_step)
 {
   if ((SDL_GetWindowFlags(g_window) & (SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_MAXIMIZED)) != 0)

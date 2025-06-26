@@ -43,6 +43,10 @@
         from {transform: rotate(0deg);}
         to {transform: rotate(360deg);}
       }
+      
+      #canvas:focus {
+        outline: 4px dotted red;
+      }
 
     </style>
   </head>
@@ -54,7 +58,7 @@
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
     <div class="emscripten_border">
-      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabIndex="1" aria-live="assertive" aria-atomic="true" aria-label="Game canvas"></canvas>
     </div>
     <hr/>
     <div class="emscripten">
@@ -138,6 +142,7 @@
 						if (rompath.exists) {
 							console.log('ROM file already in filesystem');
 							console.log('Starting game with stored rom file...');
+							document.getElementById('canvas').focus();
 							this.callMain();
 						}
 					}
@@ -207,6 +212,12 @@
           if (text) console.error('[post-exception status] ' + text);
         };
       };
+      function updateAriaLabel (label) {
+        let lbl = UTF8ToString(label);
+        console.log('Updating ARIA label: ' + lbl);
+        document.getElementById('canvas').setAttribute("aria-label", lbl);
+        document.getElementById('canvas').focus();
+      }
     </script>
     {{{ SCRIPT }}}
   </body>

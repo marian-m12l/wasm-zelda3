@@ -2118,6 +2118,58 @@ void CopySaveToWRAM() {  // 8ccfbb
   hud_palette = 0;
 }
 
+
+char buffer[512];
+char* textToAscii(const uint8* text) {
+  const uint8* src = text;
+  char* dst = buffer;
+  while ((dst - buffer) < 512 && *src != 0x7e /* WaitKey*/ && *src != 0x7f /* End */) {
+    uint8 val = *src;
+    if (val < 0x1a) {
+      *dst++ = val + 'A';
+    } else if (val < 0x34) {
+      *dst++ = val + 'a' - 0x1a;
+    } else if (val < 0x3e) {
+      *dst++ = val + '0' - 0x3e;
+    } else {
+      // FIXME
+      switch (val) {
+        case 0x3e: *dst++ = '!'; break;
+        case 0x3f: *dst++ = '?'; break;
+        case 0x40: *dst++ = '-'; break;
+        case 0x41: *dst++ = '.'; break;
+        case 0x42: *dst++ = ','; break;
+        case 0x43: *dst++ = 0xe2; *dst++ = 0x80; *dst++ = 0xa6; break; /* … */
+        case 0x44: *dst++ = '>'; break;
+        case 0x45: *dst++ = '('; break;
+        case 0x46: *dst++ = ')'; break;
+        case 0x4c: *dst++ = '"'; break;
+        case 0x51: *dst++ = '\''; break;
+        case 0x59: *dst++ = ' '; break;
+        case 0x5a: *dst++ = '<'; break;
+        case 0x5f: *dst++ = '|'; break;
+        case 0x61: *dst++ = 0xc2; *dst++ = 0xa1; break; /* ¡ */
+        case 0x73:
+        case 0x75:
+        case 0x76: *dst++ = '\n'; break;
+        case 0x77: src++; break; /* Color XX --> skip next character */
+        case 0x78: src++; break; /* Wait XX --> skip next character */
+        case 0x79: src++; break; /* Sound XX --> skip next character */
+        case 0x7a: src++; break; /* Speed XX --> skip next character */
+        //case 0x7e:*dst++ = '@'; break; /* WaitKey */
+      	default:
+          //*dst++ = '#';
+          *dst++ = 0x30 + (val >> 4);
+          *dst++ = 0x30 + (val & 0xf);
+          break;
+      }
+    }
+    src++;
+  }
+  *dst++ = '\0';
+  return buffer;
+}
+
 void RenderText() {  // 8ec440
   kMessaging_Text[messaging_module]();
 }
@@ -2307,6 +2359,9 @@ void Text_LoadCharacterBuffer() {  // 8ec4e2
   }
   *dst = 0x7f;
   dialogue_msg_read_pos = 0;
+  
+  // Print text until WaitKey or End
+  updateAriaLabel("%s", textToAscii(&messaging_text_buffer[dialogue_msg_read_pos]));
 }
 
 uint8 *Text_WritePlayerName(uint8 *p) {  // 8ec5b3
@@ -2473,6 +2528,8 @@ RESTART:;
     } else {
       if ((filtered_joypad_H | filtered_joypad_L) & 0xc0) {
         text_wait_countdown2 = 28;
+        // Print next text until WaitKey or End
+        updateAriaLabel("%s", textToAscii(&messaging_text_buffer[dialogue_msg_read_pos + 1 + TEXTCMD_MULTIBYTE(cmd)]));
         goto COMMAND_DONE;
       }
     }
@@ -2485,6 +2542,8 @@ RESTART:;
       if ((filtered_joypad_H | filtered_joypad_L)) {
         text_render_state = 4;
         text_wait_countdown2 = 28;
+        // Clear text
+        updateAriaLabel("");
       }
     }
     break;
