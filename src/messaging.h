@@ -1,6 +1,8 @@
 #pragma once
 #include "types.h"
 
+extern int updateAriaLabel(const char* fmt, ...);
+
 const uint8 *GetDungmapFloorLayout();
 uint8 GetOtherDungmapInfo(int count);
 void DungMap_4();
