@@ -7,6 +7,54 @@
 #include "messaging.h"
 #include "sprite.h"
 
+
+char name_buffer[64];
+char* nameToAscii(const uint16* name) {
+  const uint16* src = name;
+  char* dst = name_buffer;
+  while ((dst - name_buffer) < 6 && *src != 0x00a9) {
+    uint8 val = *src;
+    if (val < 0x10) {
+      *dst++ = val + 'A';
+    } else if (val >= 0x20 && val < 0x2a) {
+      *dst++ = val + 'Q' - 0x20;
+    } else if (val >= 0x2a && val < 0x30) {
+      *dst++ = val + 'a' - 0x2a;
+    } else if (val >= 0x40 && val < 0x50) {
+      *dst++ = val + 'g' - 0x40;
+    } else if (val >= 0x60 && val < 0x64) {
+      *dst++ = val + 'w' - 0x60;
+    } else if (val >= 0x64 && val < 0x6e) {
+      *dst++ = val + '0' - 0x64;
+    } else {
+      // FIXME
+      switch (val) {
+        case 0x6f: *dst++ = '?'; break;
+        case 0x80: *dst++ = '-'; break;
+        case 0x81: *dst++ = '.'; break;
+        case 0x82: *dst++ = ','; break;
+        case 0x85: *dst++ = '('; break;
+        case 0x86: *dst++ = ')'; break;
+        case 0xaf: *dst++ = 'I'; break;
+        case 0xc1: *dst++ = '!'; break;
+        case 0xaa: *dst++ = 0xe2; *dst++ = 0x86; *dst++ = 0x90; break; /* ← */
+        case 0x84: *dst++ = 0xe2; *dst++ = 0x86; *dst++ = 0x92; break; /* → */
+        case 0xcf: *dst++ = 'E'; *dst++ = 'N'; *dst++ = 'D'; break;
+      	default:
+          //*dst++ = '#';
+          *dst++ = 0x30 + (val >> 12);
+          *dst++ = 0x30 + ((val >> 8) & 0xf);
+          *dst++ = 0x30 + ((val >> 4) & 0xf);
+          *dst++ = 0x30 + (val & 0xf);
+          break;
+      }
+    }
+    src++;
+  }
+  *dst++ = '\0';
+  return name_buffer;
+}
+
 #define selectfile_R16 g_ram[0xc8]
 #define selectfile_R17 g_ram[0xc9]
 #define selectfile_R18 WORD(g_ram[0xca])
@@ -152,6 +200,9 @@ void Module_NamePlayer_2() {
   submodule_index++;
   INIDISP_copy = 15;
   nmi_disable_core_updates = 0;
+
+  // Read 'register your name' when entering new file naming screen
+  updateAriaLabel("REGISTER YOUR NAME: G");
 }
 
 void Intro_FixCksum(uint8 *s) {
@@ -189,6 +240,36 @@ void Intro_ValidateSram() {  // 828054
     }
   }
   memset(&g_ram[0xd00], 0, 256 * 3);
+}
+
+void printSelectedItemMainMenu() {
+  if (selectfile_R16 < 3) {
+    uint8 *sram = g_zenv.sram + 0x500 * selectfile_R16;
+    if (*(uint16 *)(sram + 0x3E5) == 0x55AA) {
+      uint16 *name = (uint16 *)(sram + kSrmOffs_Name);
+      updateAriaLabel("%d. %s", selectfile_R16 + 1, nameToAscii(name));
+    } else {
+      updateAriaLabel("%d.", selectfile_R16 + 1);
+    }
+  } else if (selectfile_R16 == 3) {
+    updateAriaLabel("COPY PLAYER");
+  } else {
+    updateAriaLabel("ERASE PLAYER");
+  }
+}
+
+void printSelectedItemSubMenu() {
+  if (selectfile_R16 < 3) {
+    uint8 *sram = g_zenv.sram + 0x500 * selectfile_R16;
+    if (*(uint16 *)(sram + 0x3E5) == 0x55AA) {
+      uint16 *name = (uint16 *)(sram + kSrmOffs_Name);
+      updateAriaLabel("%d. %s", selectfile_R16 + 1, nameToAscii(name));
+    } else {
+      updateAriaLabel("%d.", selectfile_R16 + 1);
+    }
+  } else {
+    updateAriaLabel("QUIT");
+  }
 }
 
 void Module01_FileSelect() {  // 8ccd7d
@@ -231,6 +312,10 @@ void Module_SelectFile_0() {  // 8ccd9d
 void FileSelect_ReInitSaveFlagsAndEraseTriforce() {  // 8ccdf2
   memset(selectfile_arr1, 0, 6);
   FileSelect_EraseTriforce();
+
+  // Entering main menu (even when coming back from copy/erase submenus)
+  updateAriaLabel("PLAYER SELECT");
+  printSelectedItemMainMenu();
 }
 
 void FileSelect_EraseTriforce() {  // 8ccdf9
@@ -332,30 +417,45 @@ void FileSelect_Main() {  // 8ccebd
       sound_effect_2 = 0x20;
       if (sign8(--selectfile_R16))
         selectfile_R16 = 4;
+      // Cursor moved up --> read new position
+      printSelectedItemMainMenu();
     } else {
       sound_effect_2 = 0x20;
       if (++selectfile_R16 == 5)
         selectfile_R16 = 0;
+      // Cursor moved down --> read new position
+      printSelectedItemMainMenu();
     }
   } else if (a != 0) {
     sound_effect_1 = 0x2c;
     if (selectfile_R16 < 3) {
       selectfile_R17 = 0;
       if (!selectfile_arr1[selectfile_R16]) {
+        // Entering new file naming screen
         main_module_index = 4;
         submodule_index = 0;
         subsubmodule_index = 0;
       } else {
+        // Loading game
+        //updateAriaLabel("Loading save number %d", selectfile_R16 + 1);
         music_control = 0xf1;
         srm_var1 = selectfile_R16 * 2 + 2;
         WORD(g_ram[0]) = selectfile_R16 * 0x500;
         CopySaveToWRAM();
       }
     } else if (selectfile_arr1[0] | selectfile_arr1[1] | selectfile_arr1[2]) {
+      // Go to copy or erase screen
+      if (selectfile_R16 == 3) {
+        updateAriaLabel("COPY PLAYER. Which?");
+      } else {
+        updateAriaLabel("ERASE PLAYER. WHICH PLAYER DO YOU WANT TO ERASE?");
+      }
       main_module_index = (selectfile_R16 == 3) ? 2 : 3;
       selectfile_R16 = 0;
       submodule_index = 0;
       subsubmodule_index = 0;
+
+      printSelectedItemSubMenu();
     } else {
       sound_effect_1 = 0x3c;
     }
@@ -457,6 +557,7 @@ void CopyFile_SelectionAndBlinker() {  // 8cd13f
   uint8 a = (filtered_joypad_L & 0xc0 | filtered_joypad_H) & 0xfc;
   if (a & 0x2c) {
     uint8 k = selectfile_R16;
+    bool moved = false;
     if (a & 8) {
       do {
         if (--k < 0) {
@@ -464,14 +565,21 @@ void CopyFile_SelectionAndBlinker() {  // 8cd13f
           break;
         }
       } while (!selectfile_arr1[k]);
+      // Cursor moved up --> read new position
+      moved = true;
     } else {
       do {
         k++;
         if (k >= 4)
           k = 0;
       } while (k != 3 && !selectfile_arr1[k]);
+      // Cursor moved down --> read new position
+      moved = true;
     }
     selectfile_R16 = k;
+    if (moved) {
+      printSelectedItemSubMenu();
+    }
     sound_effect_2 = 0x20;
   } else if (a != 0) {
     sound_effect_1 = 0x2c;
@@ -682,6 +790,7 @@ void KILLFile_ChooseTarget() {  // 8cd4ba
   FileSelect_DrawFairy(kKILLFile_ChooseTarget_FaerieX[selectfile_R16], kKILLFile_ChooseTarget_FaerieY[selectfile_R16]);
 
   int k = selectfile_R16;
+  bool moved = false;
   if (filtered_joypad_H & 0x2c) {
     if (!(filtered_joypad_H & 0x24)) {
       do {
@@ -690,16 +799,23 @@ void KILLFile_ChooseTarget() {  // 8cd4ba
           break;
         }
       } while (!selectfile_arr1[k]);
+      // Cursor moved up --> read new position
+      moved = true;
     } else {
       do {
         k++;
         if (k >= 4)
           k = 0;
       } while (k != 3 && !selectfile_arr1[k]);
+      // Cursor moved down --> read new position
+      moved = true;
     }
     sound_effect_2 = 0x20;
   }
   selectfile_R16 = k;
+  if (moved) {
+    printSelectedItemSubMenu();
+  }
 
   uint8 a = (filtered_joypad_L & 0xc0 | filtered_joypad_H) & 0xd0;
   if (a) {
@@ -752,6 +868,17 @@ void NameFile_EraseSave() {  // 8cd89c
   name[0] = name[1] = name[2] = name[3] = name[4] = name[5] = 0xa9;
 }
 
+static const int8 kNamePlayer_Tab3[128] = {
+      6,    7, 0x5f,    9, 0x59, 0x59, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x60, 0x23,
+  0x59, 0x59, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x59, 0x59, 0x59,    0,    1,    2,    3,    4,    5,
+  0x10, 0x11, 0x12, 0x13, 0x59, 0x59, 0x24, 0x5f, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+  0x59, 0x59, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x59, 0x59, 0x59,  0xa,  0xb,  0xc,  0xd,  0xe,  0xf,
+  0x40, 0x41, 0x42, 0x59, 0x59, 0x59, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x40, 0x41, 0x42, 0x59,
+  0x59, 0x59, 0x61, 0x3f, 0x45, 0x46, 0x59, 0x59, 0x59, 0x59, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+  0x44, 0x59, 0x6f, 0x6f, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x5a, 0x44, 0x59, 0x6f, 0x6f,
+  0x59, 0x59, 0x5a, 0x44, 0x59, 0x6f, 0x6f, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x5a,
+};
+
 void NameFile_DoTheNaming() {  // 8cda4d
   static const int16 kNamePlayer_Tab1[26] = {
     -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1,
@@ -763,16 +890,7 @@ void NameFile_DoTheNaming() {  // 8cda4d
     0x1f0,     0,  0x10,  0x20,  0x30,  0x40,  0x50,  0x60,  0x70,  0x80,  0x90,  0xa0,  0xb0,  0xc0,  0xd0,  0xe0,
      0xf0, 0x100, 0x110, 0x120, 0x130, 0x140, 0x150, 0x160, 0x170, 0x180, 0x190, 0x1a0, 0x1b0, 0x1c0, 0x1d0, 0x1e0,
   };
-  static const int8 kNamePlayer_Tab3[128] = {
-       6,    7, 0x5f,    9, 0x59, 0x59, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x60, 0x23,
-    0x59, 0x59, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x59, 0x59, 0x59,    0,    1,    2,    3,    4,    5,
-    0x10, 0x11, 0x12, 0x13, 0x59, 0x59, 0x24, 0x5f, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
-    0x59, 0x59, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x59, 0x59, 0x59,  0xa,  0xb,  0xc,  0xd,  0xe,  0xf,
-    0x40, 0x41, 0x42, 0x59, 0x59, 0x59, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x40, 0x41, 0x42, 0x59,
-    0x59, 0x59, 0x61, 0x3f, 0x45, 0x46, 0x59, 0x59, 0x59, 0x59, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-    0x44, 0x59, 0x6f, 0x6f, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x5a, 0x44, 0x59, 0x6f, 0x6f,
-    0x59, 0x59, 0x5a, 0x44, 0x59, 0x6f, 0x6f, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x5a,
-  };
+
   for (;;) {
     int j = selectfile_var9;
     if (j == 0) {
@@ -838,6 +956,8 @@ void NameFile_DoTheNaming() {  // 8cda4d
       uint16 chr = (t & 0xfff0) * 2 + (t & 0xf);
       WORD(g_zenv.sram[p + kSrmOffs_Name]) = chr;
       NameFile_DrawSelectedCharacter(selectfile_var4, chr);
+      // Read name
+      updateAriaLabel("%s", nameToAscii((uint16*)(&g_zenv.sram[attract_legend_ctr + kSrmOffs_Name])));
       if (++selectfile_var4 == 6)
         selectfile_var4 = 0;
       return;
@@ -885,6 +1005,10 @@ void NameFile_CheckForScrollInputX() {  // 8cdc8c
     if (t == kNameFile_CheckForScrollInputX_Cmp[k])
       t = kNameFile_CheckForScrollInputX_Set[k];
     selectfile_var3 = t;
+    // Read selected character
+    uint8 t2 = kNamePlayer_Tab3[selectfile_var3 + selectfile_var5 * 0x20];
+    uint32 chr2 = 0x00a90000 | ((t2 & 0xfff0) * 2 + (t2 & 0xf));
+    updateAriaLabel("%s", nameToAscii((uint16*)&chr2));
   }
 }
 
@@ -904,6 +1028,10 @@ void NameFile_CheckForScrollInputY() {  // 8cdcbf
     if (t == kNameFile_CheckForScrollInputY_Cmp[a-1])
       t = kNameFile_CheckForScrollInputY_Set[a-1];
     selectfile_var5 = t;
+    // Read selected character
+    uint8 t2 = kNamePlayer_Tab3[selectfile_var3 + selectfile_var5 * 0x20];
+    uint32 chr2 = 0x00a90000 | ((t2 & 0xfff0) * 2 + (t2 & 0xf));
+    updateAriaLabel("%s", nameToAscii((uint16*)&chr2));
 
     selectfile_var11++;
     selectfile_arr2[1] = a;

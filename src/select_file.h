@@ -1,5 +1,7 @@
 #pragma once
 
+extern int updateAriaLabel(const char* fmt, ...);
+
 
 bool Intro_CheckCksum(const uint8 *s);
 uint16 *SelectFile_Func1();

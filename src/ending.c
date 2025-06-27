@@ -660,6 +660,7 @@ void FadeMusicAndResetSRAMMirror() {  // 8cc2f0
   main_module_index = 1;
   death_var4 = 1;
   submodule_index = 0;
+  // Entering main menu
 }
 
 void Intro_InitializeTriforcePolyThread() {  // 8cc33c
