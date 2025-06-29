@@ -8,6 +8,8 @@
 #include "sprite.h"
 
 
+#define NIBBLE_AS_HEX(x) ((x) < 10 ? '0'+(x) : 'a'+((x)-10))
+
 char name_buffer[64];
 char* nameToAscii(const uint16* name) {
   const uint16* src = name;
@@ -24,8 +26,10 @@ char* nameToAscii(const uint16* name) {
       *dst++ = val + 'g' - 0x40;
     } else if (val >= 0x60 && val < 0x64) {
       *dst++ = val + 'w' - 0x60;
-    } else if (val >= 0x64 && val < 0x6e) {
+    } /*else if (val >= 0x64 && val < 0x6e) {
       *dst++ = val + '0' - 0x64;
+    } */else if (val >= 0xe6 && val < 0xf0) {
+      *dst++ = val + '0' - 0xe6;
     } else {
       // FIXME
       switch (val) {
@@ -35,17 +39,20 @@ char* nameToAscii(const uint16* name) {
         case 0x82: *dst++ = ','; break;
         case 0x85: *dst++ = '('; break;
         case 0x86: *dst++ = ')'; break;
-        case 0xaf: *dst++ = 'I'; break;
+        case 0xaf: *dst++ = 'I'; break; // The same character is used for uppercase 'I' and lowercase 'L'...
+        case 0xc0: *dst++ = 'i'; break;
         case 0xc1: *dst++ = '!'; break;
         case 0xaa: *dst++ = 0xe2; *dst++ = 0x86; *dst++ = 0x90; break; /* ← */
         case 0x84: *dst++ = 0xe2; *dst++ = 0x86; *dst++ = 0x92; break; /* → */
         case 0xcf: *dst++ = 'E'; *dst++ = 'N'; *dst++ = 'D'; break;
       	default:
           //*dst++ = '#';
-          *dst++ = 0x30 + (val >> 12);
-          *dst++ = 0x30 + ((val >> 8) & 0xf);
-          *dst++ = 0x30 + ((val >> 4) & 0xf);
-          *dst++ = 0x30 + (val & 0xf);
+          *dst++ = '[';
+          *dst++ = NIBBLE_AS_HEX(val >> 12);
+          *dst++ = NIBBLE_AS_HEX((val >> 8) & 0xf);
+          *dst++ = NIBBLE_AS_HEX((val >> 4) & 0xf);
+          *dst++ = NIBBLE_AS_HEX(val & 0xf);
+          *dst++ = ']';
           break;
       }
     }
@@ -242,33 +249,33 @@ void Intro_ValidateSram() {  // 828054
   memset(&g_ram[0xd00], 0, 256 * 3);
 }
 
-void printSelectedItemMainMenu() {
+void printSelectedItemMainMenu(const char* prefix) {
   if (selectfile_R16 < 3) {
     uint8 *sram = g_zenv.sram + 0x500 * selectfile_R16;
     if (*(uint16 *)(sram + 0x3E5) == 0x55AA) {
       uint16 *name = (uint16 *)(sram + kSrmOffs_Name);
-      updateAriaLabel("%d. %s", selectfile_R16 + 1, nameToAscii(name));
+      updateAriaLabel("%s%d. %s", prefix, selectfile_R16 + 1, nameToAscii(name));
     } else {
-      updateAriaLabel("%d.", selectfile_R16 + 1);
+      updateAriaLabel("%s%d.", prefix, selectfile_R16 + 1);
     }
   } else if (selectfile_R16 == 3) {
-    updateAriaLabel("COPY PLAYER");
+    updateAriaLabel("%sCOPY PLAYER", prefix);
   } else {
-    updateAriaLabel("ERASE PLAYER");
+    updateAriaLabel("%sERASE PLAYER", prefix);
   }
 }
 
-void printSelectedItemSubMenu() {
+void printSelectedItemSubMenu(const char* prefix) {
   if (selectfile_R16 < 3) {
     uint8 *sram = g_zenv.sram + 0x500 * selectfile_R16;
     if (*(uint16 *)(sram + 0x3E5) == 0x55AA) {
       uint16 *name = (uint16 *)(sram + kSrmOffs_Name);
-      updateAriaLabel("%d. %s", selectfile_R16 + 1, nameToAscii(name));
+      updateAriaLabel("%s%d. %s", prefix, selectfile_R16 + 1, nameToAscii(name));
     } else {
-      updateAriaLabel("%d.", selectfile_R16 + 1);
+      updateAriaLabel("%s%d.", prefix, selectfile_R16 + 1);
     }
   } else {
-    updateAriaLabel("QUIT");
+    updateAriaLabel("%sQUIT", prefix);
   }
 }
 
@@ -361,8 +368,7 @@ void FileSelect_TriggerStripesAndAdvance() {  // 8ccea5
   nmi_load_bg_from_vram = 6;
 
   // Entering main menu (even when coming back from copy/erase submenus)
-  updateAriaLabel("PLAYER SELECT");
-  printSelectedItemMainMenu();
+  printSelectedItemMainMenu("PLAYER SELECT: ");
 }
 
 void FileSelect_TriggerNameStripesAndAdvance() {  // 8cceb1
@@ -418,13 +424,13 @@ void FileSelect_Main() {  // 8ccebd
       if (sign8(--selectfile_R16))
         selectfile_R16 = 4;
       // Cursor moved up --> read new position
-      printSelectedItemMainMenu();
+      printSelectedItemMainMenu("");
     } else {
       sound_effect_2 = 0x20;
       if (++selectfile_R16 == 5)
         selectfile_R16 = 0;
       // Cursor moved down --> read new position
-      printSelectedItemMainMenu();
+      printSelectedItemMainMenu("");
     }
   } else if (a != 0) {
     sound_effect_1 = 0x2c;
@@ -445,17 +451,17 @@ void FileSelect_Main() {  // 8ccebd
       }
     } else if (selectfile_arr1[0] | selectfile_arr1[1] | selectfile_arr1[2]) {
       // Go to copy or erase screen
-      if (selectfile_R16 == 3) {
-        updateAriaLabel("COPY PLAYER. Which?");
-      } else {
-        updateAriaLabel("ERASE PLAYER. WHICH PLAYER DO YOU WANT TO ERASE?");
-      }
+      bool isCopyMenu = (selectfile_R16 == 3);
       main_module_index = (selectfile_R16 == 3) ? 2 : 3;
       selectfile_R16 = 0;
       submodule_index = 0;
       subsubmodule_index = 0;
 
-      printSelectedItemSubMenu();
+      if (isCopyMenu) {
+        printSelectedItemSubMenu("COPY PLAYER. Which? ");
+      } else {
+        printSelectedItemSubMenu("ERASE PLAYER. WHICH PLAYER DO YOU WANT TO ERASE? ");
+      }
     } else {
       sound_effect_1 = 0x3c;
     }
@@ -578,7 +584,7 @@ void CopyFile_SelectionAndBlinker() {  // 8cd13f
     }
     selectfile_R16 = k;
     if (moved) {
-      printSelectedItemSubMenu();
+      printSelectedItemSubMenu("");
     }
     sound_effect_2 = 0x20;
   } else if (a != 0) {
@@ -814,7 +820,7 @@ void KILLFile_ChooseTarget() {  // 8cd4ba
   }
   selectfile_R16 = k;
   if (moved) {
-    printSelectedItemSubMenu();
+    printSelectedItemSubMenu("");
   }
 
   uint8 a = (filtered_joypad_L & 0xc0 | filtered_joypad_H) & 0xd0;

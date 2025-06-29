@@ -2118,6 +2118,7 @@ void CopySaveToWRAM() {  // 8ccfbb
   hud_palette = 0;
 }
 
+#define NIBBLE_AS_HEX(x) ((x) < 10 ? '0'+(x) : 'a'+((x)-10))
 
 char buffer[512];
 char* textToAscii(const uint8* text) {
@@ -2159,8 +2160,10 @@ char* textToAscii(const uint8* text) {
         //case 0x7e:*dst++ = '@'; break; /* WaitKey */
       	default:
           //*dst++ = '#';
-          *dst++ = 0x30 + (val >> 4);
-          *dst++ = 0x30 + (val & 0xf);
+          *dst++ = '[';
+          *dst++ = NIBBLE_AS_HEX(val >> 4);
+          *dst++ = NIBBLE_AS_HEX(val & 0xf);
+          *dst++ = ']';
           break;
       }
     }
