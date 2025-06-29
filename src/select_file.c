@@ -312,10 +312,6 @@ void Module_SelectFile_0() {  // 8ccd9d
 void FileSelect_ReInitSaveFlagsAndEraseTriforce() {  // 8ccdf2
   memset(selectfile_arr1, 0, 6);
   FileSelect_EraseTriforce();
-
-  // Entering main menu (even when coming back from copy/erase submenus)
-  updateAriaLabel("PLAYER SELECT");
-  printSelectedItemMainMenu();
 }
 
 void FileSelect_EraseTriforce() {  // 8ccdf9
@@ -363,6 +359,10 @@ void FileSelect_TriggerStripesAndAdvance() {  // 8ccea5
   selectfile_R16 = selectfile_var2;
   submodule_index++;
   nmi_load_bg_from_vram = 6;
+
+  // Entering main menu (even when coming back from copy/erase submenus)
+  updateAriaLabel("PLAYER SELECT");
+  printSelectedItemMainMenu();
 }
 
 void FileSelect_TriggerNameStripesAndAdvance() {  // 8cceb1
@@ -556,7 +556,7 @@ void CopyFile_SelectionAndBlinker() {  // 8cd13f
 
   uint8 a = (filtered_joypad_L & 0xc0 | filtered_joypad_H) & 0xfc;
   if (a & 0x2c) {
-    uint8 k = selectfile_R16;
+    int k = selectfile_R16;
     bool moved = false;
     if (a & 8) {
       do {
